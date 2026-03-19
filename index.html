@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Ricevute">
+  <meta name="theme-color" content="#E8634A">
+  <meta name="description" content="Traccia le tue ricevute con analisi AI">
+  <title>Ricevute — Receipt Tracker</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700&family=Fraunces:opsz,wght@9..144,600;9..144,800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #FAF8F5;
+      --surface: #FFFFFF;
+      --surface-alt: #F3F0EB;
+      --border: #E8E4DE;
+      --text: #1A1814;
+      --text-secondary: #6B6560;
+      --text-muted: #A09A94;
+      --accent: #E8634A;
+      --accent-light: #FFF0ED;
+      --green: #5BB563;
+      --green-light: #EDFAEE;
+      --shadow-sm: 0 1px 3px rgba(26,24,20,0.06);
+      --radius: 14px;
+      --radius-sm: 8px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+    html, body, #root { height:100%; }
+    body {
+      background: var(--bg);
+      font-family: 'DM Sans', -apple-system, sans-serif;
+      color: var(--text);
+      overscroll-behavior: none;
+      -webkit-font-smoothing: antialiased;
+    }
+    .app {
+      min-height: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      position: relative;
+      overflow-x: hidden;
+      padding-top: var(--safe-top);
+      padding-bottom: var(--safe-bottom);
+    }
+    .header {
+      padding: 16px 20px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      font-family: 'Fraunces', serif;
+      font-weight: 800;
+      font-size: 22px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--accent);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .header-count { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+    .nav { display: flex; gap: 4px; padding: 4px 20px 14px; }
+    .nav-btn {
+      flex: 1; padding: 9px 0; border: none;
+      background: transparent; font-family: inherit;
+      font-size: 12px; font-weight: 600; color: var(--text-muted);
+      cursor: pointer; border-radius: var(--radius-sm);
+      transition: all 0.25s;
+    }
+    .nav-btn.active { background: var(--text); color: white; }
+    .content { padding: 0 20px 110px; }
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border);
+      margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1.2px;
+      color: var(--text-muted); margin-bottom: 12px;
+    }
+    .stat-big {
+      font-family: 'Fraunces', serif;
+      font-size: 28px; font-weight: 800; line-height: 1.1;
+    }
+    .stat-sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* FAB */
+    .fab {
+      position: fixed; bottom: calc(24px + var(--safe-bottom));
+      left: 50%; transform: translateX(-50%);
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--accent); color: white; border: none;
+      font-size: 28px; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(232,99,74,0.4);
+      transition: all 0.2s; z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .fab:active { transform: translateX(-50%) scale(0.92); }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 48px 20px; text-align: center;
+      cursor: pointer; transition: all 0.3s;
+      background: var(--surface);
+    }
+    .drop-zone.active { border-color: var(--accent); background: var(--accent-light); }
+    .drop-zone-icon { font-size: 44px; margin-bottom: 14px; }
+    .drop-zone-text { font-size: 14px; color: var(--text-secondary); font-weight: 500; }
+    .drop-zone-hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+
+    /* Preview & Form */
+    .preview-img {
+      width: 100%; max-height: 200px;
+      object-fit: contain; border-radius: var(--radius-sm);
+      margin-bottom: 16px; background: var(--surface-alt);
+    }
+    .form-field { margin-bottom: 14px; }
+    .form-label {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1px;
+      color: var(--text-muted); margin-bottom: 6px; display: block;
+    }
+    .form-input, .form-select {
+      width: 100%; padding: 11px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: inherit; font-size: 15px;
+      color: var(--text); background: var(--surface);
+      outline: none; transition: border-color 0.2s;
+      -webkit-appearance: none;
+    }
+    .form-input:focus, .form-select:focus { border-color: var(--accent); }
+
+    /* Buttons */
+    .btn-primary {
+      width: 100%; padding: 15px; margin-top: 6px;
+      background: var(--accent); color: white; border: none;
+      border-radius: var(--radius-sm); font-family: inherit;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+    .btn-primary:disabled { opacity: 0.5; }
+    .btn-secondary {
+      width: 100%; padding: 13px;
+      background: var(--surface-alt); color: var(--text-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: inherit; font-size: 14px; font-weight: 500;
+      cursor: pointer; margin-top: 8px;
+    }
+
+    /* Receipt items */
+    .receipt-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 13px 0; border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: opacity 0.15s;
+    }
+    .receipt-item:last-child { border-bottom: none; }
+    .receipt-item:active { opacity: 0.6; }
+    .receipt-icon {
+      width: 42px; height: 42px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .receipt-info { flex: 1; min-width: 0; }
+    .receipt-merchant {
+      font-weight: 700; font-size: 14px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .receipt-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .receipt-amount {
+      font-family: 'Fraunces', serif;
+      font-weight: 700; font-size: 15px;
+      text-align: right; flex-shrink: 0;
+    }
+
+    /* Category breakdown */
+    .cat-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+    .cat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .cat-name { flex: 1; font-size: 13px; font-weight: 500; }
+    .cat-amount { font-weight: 700; font-size: 13px; }
+    .cat-bar-bg { height: 4px; background: var(--surface-alt); border-radius: 2px; flex: 1; min-width: 40px; max-width: 80px; }
+    .cat-bar { height: 4px; border-radius: 2px; transition: width 0.6s cubic-bezier(.4,0,.2,1); }
+
+    /* Filter chips */
+    .filter-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none; }
+    .filter-row::-webkit-scrollbar { display: none; }
+    .filter-chip {
+      padding: 7px 14px; border-radius: 20px;
+      border: 1px solid var(--border); background: var(--surface);
+      font-size: 12px; font-weight: 600; color: var(--text-secondary);
+      cursor: pointer; white-space: nowrap; flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .filter-chip.active { background: var(--text); color: white; border-color: var(--text); }
+
+    /* Confidence */
+    .confidence-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 11px; font-weight: 600;
+      padding: 3px 10px; border-radius: 20px;
+    }
+    .conf-high { background: var(--green-light); color: var(--green); }
+    .conf-medium { background: #FFF8E0; color: #C5960C; }
+    .conf-low { background: #FFE8E8; color: #D94A4A; }
+
+    /* Spinner */
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 24px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* Bottom sheet */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(26,24,20,0.45);
+      z-index: 150;
+      display: flex; align-items: flex-end; justify-content: center;
+      animation: fadeIn 0.2s;
+    }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    .sheet {
+      background: var(--surface);
+      border-radius: 22px 22px 0 0;
+      width: 100%; max-width: 480px;
+      max-height: 85vh; overflow-y: auto;
+      padding: 20px 20px calc(32px + var(--safe-bottom));
+      animation: slideUp 0.3s cubic-bezier(.22,1,.36,1);
+    }
+    @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+    .sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: calc(90px + var(--safe-bottom));
+      left: 50%; transform: translateX(-50%);
+      padding: 10px 24px; border-radius: 30px;
+      font-size: 13px; font-weight: 600;
+      z-index: 200; animation: toastIn 0.3s ease;
+      white-space: nowrap;
+    }
+    .toast-success { background: var(--green); color: white; }
+    .toast-error { background: #D94A4A; color: white; }
+    @keyframes toastIn {
+      from{opacity:0;transform:translateX(-50%) translateY(10px)}
+      to{opacity:1;transform:translateX(-50%) translateY(0)}
+    }
+
+    /* Empty */
+    .empty { text-align: center; padding: 48px 20px; }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-title { font-family:'Fraunces',serif; font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+    .empty-sub { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+    /* Install banner */
+    .install-banner {
+      margin: 0 0 14px;
+      background: linear-gradient(135deg, #E8634A 0%, #D4513A 100%);
+      color: white; border-radius: var(--radius);
+      padding: 16px 20px;
+      display: flex; align-items: center; gap: 14px;
+      cursor: pointer; transition: opacity 0.2s;
+    }
+    .install-banner:active { opacity: 0.85; }
+    .install-banner-icon { font-size: 28px; flex-shrink: 0; }
+    .install-banner-text { font-size: 13px; font-weight: 500; line-height: 1.4; }
+    .install-banner-title { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+    .install-banner-close {
+      background: rgba(255,255,255,0.2); border: none;
+      color: white; width: 28px; height: 28px; border-radius: 50%;
+      font-size: 14px; cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+
+  <script>
+  // ── Register Service Worker ──
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+
+  // ── PWA Install Prompt ──
+  let deferredInstallPrompt = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    window.dispatchEvent(new Event('pwa-installable'));
+  });
+
+  // ── Constants ──
+  const CATEGORIES = ["Food & Dining","Groceries","Transportation","Shopping","Health","Entertainment","Utilities","Other"];
+  const CAT_COLORS = {"Food & Dining":"#E8634A","Groceries":"#5BB563","Transportation":"#4A90D9","Shopping":"#D4A843","Health":"#C75BAB","Entertainment":"#8B6CE0","Utilities":"#5BBCB5","Other":"#8A8A8A"};
+  const CAT_ICONS = {"Food & Dining":"🍽️","Groceries":"🛒","Transportation":"🚗","Shopping":"🛍️","Health":"💊","Entertainment":"🎬","Utilities":"⚡","Other":"📦"};
+  const MONTHS = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"];
+
+  const genId = () => "REC-" + Date.now() + "-" + Math.random().toString(36).substr(2,4);
+  const fmtMoney = (n, c="EUR") => new Intl.NumberFormat("it-IT",{style:"currency",currency:c}).format(n);
+  const fmtDate = s => { const d=new Date(s); return d.getDate()+" "+MONTHS[d.getMonth()]+" "+d.getFullYear(); };
+
+  const {createElement: h, useState, useEffect, useRef, useCallback} = React;
+
+  // ── Storage helpers (localStorage for PWA) ──
+  const STORAGE_KEY = "ricevute_data_v1";
+  const loadReceipts = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { return []; }};
+  const saveReceipts = (r) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(r)); } catch(e){} };
+
+  // ── Mini Bar Chart ──
+  function MiniBarChart({data}) {
+    const max = Math.max(...data.map(d=>d.value), 1);
+    return h('div', {style:{display:'flex',alignItems:'flex-end',gap:3,height:60}},
+      data.map((d,i) => h('div', {key:i, style:{display:'flex',flexDirection:'column',alignItems:'center',flex:1}},
+        h('div', {style:{width:'100%',maxWidth:28,height:Math.max((d.value/max)*48,2),background:d.color||'var(--accent)',borderRadius:'4px 4px 0 0',transition:'height 0.5s cubic-bezier(.4,0,.2,1)',opacity:d.value===0?0.2:1}}),
+        h('span', {style:{fontSize:9,color:'var(--text-muted)',marginTop:2}}, d.label)
+      ))
+    );
+  }
+
+  // ── Main App ──
+  function App() {
+    const [receipts, setReceipts] = useState(loadReceipts);
+    const [view, setView] = useState("dashboard");
+    const [analyzing, setAnalyzing] = useState(false);
+    const [preview, setPreview] = useState(null);
+    const [editData, setEditData] = useState(null);
+    const [dragActive, setDragActive] = useState(false);
+    const [toast, setToast] = useState(null);
+    const [filterCat, setFilterCat] = useState("All");
+    const [selected, setSelected] = useState(null);
+    const [installable, setInstallable] = useState(!!deferredInstallPrompt);
+    const [bannerDismissed, setBannerDismissed] = useState(!!localStorage.getItem('install_dismissed'));
+    const fileRef = useRef(null);
+
+    useEffect(() => { saveReceipts(receipts); }, [receipts]);
+
+    useEffect(() => {
+      const handler = () => setInstallable(true);
+      window.addEventListener('pwa-installable', handler);
+      return () => window.removeEventListener('pwa-installable', handler);
+    }, []);
+
+    const showToast = (msg, type="success") => {
+      setToast({msg,type});
+      setTimeout(() => setToast(null), 3000);
+    };
+
+    const doInstall = async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      const {outcome} = await deferredInstallPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setInstallable(false);
+        showToast("App installata!");
+      }
+      deferredInstallPrompt = null;
+    };
+
+    const dismissBanner = (e) => {
+      e.stopPropagation();
+      setBannerDismissed(true);
+      localStorage.setItem('install_dismissed', '1');
+    };
+
+    // ── AI Analyze ──
+    const analyzeReceipt = async (base64, mime) => {
+      setAnalyzing(true);
+      try {
+        const res = await fetch("https://api.anthropic.com/v1/messages", {
+          method:"POST",
+          headers:{"Content-Type":"application/json","x-api-key": localStorage.getItem('anthropic_key') || ""},
+          body: JSON.stringify({
+            model:"claude-sonnet-4-20250514", max_tokens:1000,
+            messages:[{role:"user",content:[
+              {type:"image",source:{type:"base64",media_type:mime,data:base64}},
+              {type:"text",text:'Analyze this receipt image. Return ONLY a valid JSON object with these fields: merchant (store name), date (YYYY-MM-DD), total_amount (number), currency (code like EUR or USD), category (one of: Food & Dining, Groceries, Transportation, Shopping, Health, Entertainment, Utilities, Other), items_summary (max 10 words), confidence (high/medium/low). No markdown, just JSON.'}
+            ]}]
+          })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        const text = data.content?.find(b=>b.type==="text")?.text || "";
+        const cleaned = text.replace(/```json\s*/gi,"").replace(/```\s*/gi,"").trim();
+        const parsed = JSON.parse(cleaned);
+        setEditData(parsed);
+      } catch(e) {
+        console.error("AI error:", e);
+        setEditData({merchant:"",date:new Date().toISOString().split("T")[0],total_amount:0,currency:"EUR",category:"Other",items_summary:"",confidence:"low"});
+        showToast("Analisi fallita — compila manualmente","error");
+      }
+      setAnalyzing(false);
+    };
+
+    const handleFile = (file) => {
+      if (!file || !file.type.startsWith("image/")) { showToast("Serve un'immagine","error"); return; }
+      setView("upload"); setEditData(null);
+      const reader = new FileReader();
+      reader.onload = e => {
+        setPreview(e.target.result);
+        const apiKey = localStorage.getItem('anthropic_key');
+        if (apiKey) {
+          analyzeReceipt(e.target.result.split(",")[1], file.type);
+        } else {
+          setEditData({merchant:"",date:new Date().toISOString().split("T")[0],total_amount:0,currency:"EUR",category:"Other",items_summary:"",confidence:"low"});
+          showToast("Nessuna API key — compila manualmente","error");
+        }
+      };
+      reader.readAsDataURL(file);
+    };
+
+    const handleDrop = useCallback(e => { e.preventDefault(); setDragActive(false); if(e.dataTransfer?.files?.[0]) handleFile(e.dataTransfer.files[0]); }, []);
+
+    const saveReceipt = () => {
+      if (!editData) return;
+      const r = { id:genId(), timestamp:new Date().toISOString(), ...editData, total_amount:parseFloat(editData.total_amount)||0, imageData:preview };
+      setReceipts(prev => [r, ...prev]);
+      setPreview(null); setEditData(null); setView("dashboard");
+      showToast("Ricevuta salvata!");
+    };
+
+    const deleteReceipt = id => { setReceipts(p=>p.filter(r=>r.id!==id)); setSelected(null); showToast("Eliminata"); };
+
+    // Stats
+    const total = receipts.reduce((s,r)=>s+(r.total_amount||0),0);
+    const now = new Date();
+    const thisMonth = receipts.filter(r=>{const d=new Date(r.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+    const monthTotal = thisMonth.reduce((s,r)=>s+(r.total_amount||0),0);
+    const catData = CATEGORIES.map(c=>({label:c,icon:CAT_ICONS[c],color:CAT_COLORS[c],value:receipts.filter(r=>r.category===c).reduce((s,r)=>s+(r.total_amount||0),0),count:receipts.filter(r=>r.category===c).length})).filter(c=>c.count>0).sort((a,b)=>b.value-a.value);
+    const monthlyData = [];
+    for(let i=5;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);const m=d.getMonth(),y=d.getFullYear();monthlyData.push({label:MONTHS[m],value:receipts.filter(r=>{const rd=new Date(r.date);return rd.getMonth()===m&&rd.getFullYear()===y;}).reduce((s,r)=>s+(r.total_amount||0),0),color:i===0?"#E8634A":"#4A90D9"});}
+    const filtered = filterCat==="All"?receipts:receipts.filter(r=>r.category===filterCat);
+
+    // ── Settings view for API key ──
+    const hasKey = !!localStorage.getItem('anthropic_key');
+
+    return h('div', {className:'app'},
+
+      // Header
+      h('div', {className:'header'},
+        h('div', {className:'logo'},
+          h('div', {className:'logo-icon'}, "🧾"),
+          "Ricevute"
+        ),
+        h('span', {className:'header-count'}, receipts.length + " ricevut" + (receipts.length===1?"a":"e"))
+      ),
+
+      // Nav
+      h('div', {className:'nav'},
+        [["dashboard","Dashboard"],["upload","Nuova"],["list","Storico"],["settings","⚙️"]].map(([k,l]) =>
+          h('button', {key:k, className:'nav-btn'+(view===k?' active':''), onClick:()=>setView(k)}, l)
+        )
+      ),
+
+      h('div', {className:'content'},
+
+        // Install banner
+        installable && !bannerDismissed && view === "dashboard" && h('div', {className:'install-banner', onClick:doInstall},
+          h('div', {className:'install-banner-icon'}, "📲"),
+          h('div', null,
+            h('div', {className:'install-banner-title'}, "Installa l'app"),
+            h('div', {className:'install-banner-text'}, "Aggiungi Ricevute alla tua Home per accesso rapido")
+          ),
+          h('button', {className:'install-banner-close', onClick:dismissBanner}, "✕")
+        ),
+
+        // ── DASHBOARD ──
+        view === "dashboard" && (receipts.length === 0
+          ? h('div', {className:'empty'},
+              h('div', {className:'empty-icon'}, "📸"),
+              h('div', {className:'empty-title'}, "Nessuna ricevuta"),
+              h('div', {className:'empty-sub'}, "Tocca + per scattare una foto o caricare un'immagine")
+            )
+          : h(React.Fragment, null,
+              h('div', {className:'two-col'},
+                h('div', {className:'card'},
+                  h('div', {className:'card-title'}, "Questo mese"),
+                  h('div', {className:'stat-big', style:{color:'var(--accent)'}}, fmtMoney(monthTotal)),
+                  h('div', {className:'stat-sub'}, thisMonth.length+" ricevut"+(thisMonth.length===1?"a":"e"))
+                ),
+                h('div', {className:'card'},
+                  h('div', {className:'card-title'}, "Totale"),
+                  h('div', {className:'stat-big'}, fmtMoney(total)),
+                  h('div', {className:'stat-sub'}, receipts.length+" ricevut"+(receipts.length===1?"a":"e"))
+                )
+              ),
+              h('div', {className:'card'},
+                h('div', {className:'card-title'}, "Ultimi 6 mesi"),
+                h(MiniBarChart, {data:monthlyData})
+              ),
+              catData.length > 0 && h('div', {className:'card'},
+                h('div', {className:'card-title'}, "Per categoria"),
+                catData.map(c => h('div', {className:'cat-row', key:c.label},
+                  h('div', {className:'cat-dot', style:{background:c.color}}),
+                  h('span', {className:'cat-name'}, c.icon+" "+c.label),
+                  h('div', {className:'cat-bar-bg'}, h('div',{className:'cat-bar',style:{width:(c.value/(catData[0]?.value||1)*100)+"%",background:c.color}})),
+                  h('span', {className:'cat-amount'}, fmtMoney(c.value))
+                ))
+              ),
+              h('div', {className:'card', style:{padding:'10px 20px'}},
+                h('div', {className:'card-title', style:{marginBottom:4}}, "Ultime ricevute"),
+                receipts.slice(0,5).map(r => h('div', {className:'receipt-item', key:r.id, onClick:()=>setSelected(r)},
+                  h('div', {className:'receipt-icon', style:{background:(CAT_COLORS[r.category]||"#888")+"18"}}, CAT_ICONS[r.category]||"📦"),
+                  h('div', {className:'receipt-info'},
+                    h('div', {className:'receipt-merchant'}, r.merchant),
+                    h('div', {className:'receipt-meta'}, fmtDate(r.date)+" · "+r.items_summary)
+                  ),
+                  h('div', {className:'receipt-amount'}, fmtMoney(r.total_amount, r.currency))
+                ))
+              )
+            )
+        ),
+
+        // ── UPLOAD ──
+        view === "upload" && h(React.Fragment, null,
+          !preview && !analyzing && h('div', {
+            className:'drop-zone'+(dragActive?' active':''),
+            onDragOver:e=>{e.preventDefault();setDragActive(true);},
+            onDragLeave:()=>setDragActive(false),
+            onDrop:handleDrop,
+            onClick:()=>fileRef.current?.click()
+          },
+            h('div', {className:'drop-zone-icon'}, "📷"),
+            h('div', {className:'drop-zone-text'}, "Tocca per scattare o caricare"),
+            h('div', {className:'drop-zone-hint'}, "JPG, PNG — foto della ricevuta"),
+            h('input', {ref:fileRef, type:'file', accept:'image/*', capture:'environment', style:{display:'none'}, onChange:e=>handleFile(e.target.files?.[0])})
+          ),
+          preview && analyzing && h('div', {className:'card'},
+            h('img', {src:preview, className:'preview-img', alt:'receipt'}),
+            h('div', {style:{display:'flex',flexDirection:'column',alignItems:'center',padding:30,gap:12}},
+              h('div', {className:'spinner'}),
+              h('div', {className:'pulse', style:{fontSize:14,color:'var(--text-secondary)'}}, "Analisi AI in corso...")
+            )
+          ),
+          preview && editData && !analyzing && h('div', {className:'card'},
+            h('img', {src:preview, className:'preview-img', alt:'receipt'}),
+            h('div', {style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}},
+              h('span', {style:{fontFamily:"'Fraunces',serif",fontWeight:700,fontSize:16}}, "Dati estratti"),
+              h('span', {className:'confidence-badge conf-'+(editData.confidence||'low')},
+                editData.confidence==='high'?"✓ Alta":editData.confidence==='medium'?"~ Media":"! Bassa", " affidabilità")
+            ),
+            h('div', {className:'form-field'},
+              h('label', {className:'form-label'}, "Negozio"),
+              h('input', {className:'form-input', value:editData.merchant||"", onChange:e=>setEditData(p=>({...p,merchant:e.target.value}))})
+            ),
+            h('div', {className:'two-col'},
+              h('div', {className:'form-field'},
+                h('label', {className:'form-label'}, "Data"),
+                h('input', {className:'form-input', type:'date', value:editData.date||"", onChange:e=>setEditData(p=>({...p,date:e.target.value}))})
+              ),
+              h('div', {className:'form-field'},
+                h('label', {className:'form-label'}, "Totale"),
+                h('input', {className:'form-input', type:'number', step:'0.01', value:editData.total_amount||"", onChange:e=>setEditData(p=>({...p,total_amount:e.target.value}))})
+              )
+            ),
+            h('div', {className:'two-col'},
+              h('div', {className:'form-field'},
+                h('label', {className:'form-label'}, "Valuta"),
+                h('select', {className:'form-select', value:editData.currency||"EUR", onChange:e=>setEditData(p=>({...p,currency:e.target.value}))},
+                  h('option',{value:'EUR'},'EUR'), h('option',{value:'USD'},'USD'), h('option',{value:'GBP'},'GBP'))
+              ),
+              h('div', {className:'form-field'},
+                h('label', {className:'form-label'}, "Categoria"),
+                h('select', {className:'form-select', value:editData.category||"Other", onChange:e=>setEditData(p=>({...p,category:e.target.value}))},
+                  CATEGORIES.map(c=>h('option',{key:c,value:c},CAT_ICONS[c]+" "+c)))
+              )
+            ),
+            h('div', {className:'form-field'},
+              h('label', {className:'form-label'}, "Descrizione"),
+              h('input', {className:'form-input', value:editData.items_summary||"", onChange:e=>setEditData(p=>({...p,items_summary:e.target.value}))})
+            ),
+            h('button', {className:'btn-primary', onClick:saveReceipt, disabled:!editData.merchant}, "💾 Salva ricevuta"),
+            h('button', {className:'btn-secondary', onClick:()=>{setPreview(null);setEditData(null);}}, "Annulla")
+          )
+        ),
+
+        // ── LIST ──
+        view === "list" && (receipts.length === 0
+          ? h('div', {className:'empty'},
+              h('div', {className:'empty-icon'}, "📋"),
+              h('div', {className:'empty-title'}, "Nessuna ricevuta"),
+              h('div', {className:'empty-sub'}, "Le ricevute salvate appariranno qui")
+            )
+          : h(React.Fragment, null,
+              h('div', {className:'filter-row'},
+                h('button', {className:'filter-chip'+(filterCat==='All'?' active':''), onClick:()=>setFilterCat('All')}, "Tutte"),
+                CATEGORIES.filter(c=>receipts.some(r=>r.category===c)).map(c=>
+                  h('button', {key:c, className:'filter-chip'+(filterCat===c?' active':''), onClick:()=>setFilterCat(c)}, CAT_ICONS[c]+" "+c)
+                )
+              ),
+              h('div', {className:'card', style:{padding:'6px 20px'}},
+                filtered.map(r => h('div', {className:'receipt-item', key:r.id, onClick:()=>setSelected(r)},
+                  h('div', {className:'receipt-icon', style:{background:(CAT_COLORS[r.category]||"#888")+"18"}}, CAT_ICONS[r.category]||"📦"),
+                  h('div', {className:'receipt-info'},
+                    h('div', {className:'receipt-merchant'}, r.merchant),
+                    h('div', {className:'receipt-meta'}, fmtDate(r.date)+" · "+r.items_summary)
+                  ),
+                  h('div', {className:'receipt-amount'}, fmtMoney(r.total_amount, r.currency))
+                ))
+              )
+            )
+        ),
+
+        // ── SETTINGS ──
+        view === "settings" && h('div', null,
+          h('div', {className:'card'},
+            h('div', {className:'card-title'}, "API Key Anthropic"),
+            h('div', {style:{fontSize:13,color:'var(--text-secondary)',marginBottom:12,lineHeight:1.5}},
+              "Per l'analisi automatica delle ricevute, inserisci la tua API key di Anthropic. La chiave resta solo sul tuo dispositivo."
+            ),
+            h('div', {className:'form-field'},
+              h('label', {className:'form-label'}, "API Key"),
+              h('input', {
+                className:'form-input',
+                type:'password',
+                placeholder:'sk-ant-...',
+                defaultValue: localStorage.getItem('anthropic_key')||"",
+                onChange: e => {
+                  localStorage.setItem('anthropic_key', e.target.value.trim());
+                }
+              })
+            ),
+            h('div', {style:{fontSize:11,color:hasKey?'var(--green)':'var(--text-muted)',fontWeight:600}},
+              hasKey ? "✓ API key configurata" : "Nessuna API key — inserimento manuale"
+            )
+          ),
+          h('div', {className:'card'},
+            h('div', {className:'card-title'}, "Dati"),
+            h('div', {style:{fontSize:13,color:'var(--text-secondary)',marginBottom:12}},
+              receipts.length + " ricevut"+(receipts.length===1?"a":"e")+" salvat"+(receipts.length===1?"a":"e")+" localmente"
+            ),
+            h('button', {className:'btn-secondary', style:{color:'var(--accent)',marginTop:0}, onClick:()=>{
+              const blob = new Blob([JSON.stringify(receipts.map(r=>({...r,imageData:undefined})),null,2)],{type:'application/json'});
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a'); a.href=url; a.download='ricevute_export.json'; a.click();
+              URL.revokeObjectURL(url);
+              showToast("Export completato!");
+            }}, "📤 Esporta JSON"),
+            h('button', {className:'btn-secondary', style:{color:'#D94A4A'}, onClick:()=>{
+              if(confirm("Eliminare tutte le ricevute?")) { setReceipts([]); showToast("Dati cancellati"); }
+            }}, "🗑️ Cancella tutti i dati")
+          ),
+          h('div', {className:'card'},
+            h('div', {className:'card-title'}, "Info"),
+            h('div', {style:{fontSize:12,color:'var(--text-muted)',lineHeight:1.6}},
+              "Ricevute PWA v1.0", h('br'),
+              "I dati restano sul dispositivo (localStorage).", h('br'),
+              "L'analisi AI usa Claude Sonnet via API."
+            )
+          )
+        )
+      ),
+
+      // FAB
+      view !== "upload" && view !== "settings" && h('button', {className:'fab', onClick:()=>{setView('upload');setPreview(null);setEditData(null);}}, "+"),
+
+      // Toast
+      toast && h('div', {className:'toast toast-'+toast.type}, toast.msg),
+
+      // Detail sheet
+      selected && h('div', {className:'overlay', onClick:e=>{if(e.target===e.currentTarget)setSelected(null);}},
+        h('div', {className:'sheet'},
+          h('div', {className:'sheet-handle'}),
+          selected.imageData && h('img', {src:selected.imageData, className:'preview-img', alt:'receipt'}),
+          h('div', {style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}},
+            h('h2', {style:{fontFamily:"'Fraunces',serif",fontSize:22,fontWeight:800}}, selected.merchant),
+            h('span', {style:{display:'inline-flex',alignItems:'center',gap:4,background:(CAT_COLORS[selected.category]||"#888")+"18",color:CAT_COLORS[selected.category],fontSize:11,fontWeight:600,padding:'3px 10px',borderRadius:20}},
+              CAT_ICONS[selected.category], " ", selected.category)
+          ),
+          h('div', {style:{fontSize:13,color:'var(--text-secondary)',marginBottom:20}}, fmtDate(selected.date)+" · "+selected.items_summary),
+          h('div', {style:{fontFamily:"'Fraunces',serif",fontSize:36,fontWeight:800,textAlign:'center',padding:'20px 0',color:'var(--accent)'}}, fmtMoney(selected.total_amount, selected.currency)),
+          h('div', {style:{fontSize:11,color:'var(--text-muted)',textAlign:'center',marginBottom:20}}, "ID: "+selected.id),
+          h('button', {className:'btn-secondary', style:{color:'#D94A4A',borderColor:'#D94A4A22'}, onClick:()=>deleteReceipt(selected.id)}, "🗑️ Elimina"),
+          h('button', {className:'btn-secondary', onClick:()=>setSelected(null)}, "Chiudi")
+        )
+      )
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+  </script>
+</body>
+</html>
